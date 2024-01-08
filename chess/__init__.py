@@ -7,6 +7,8 @@ Syzygy tablebase probing, and XBoard/UCI engine communication.
 
 from __future__ import annotations
 
+import pyo3_rchess
+
 __author__ = "Niklas Fiekas"
 
 __email__ = "niklas.fiekas@backscattering.de"
@@ -1682,6 +1684,21 @@ class Board(BaseBoard):
     def set_piece_at(self, square: Square, piece: Optional[Piece], promoted: bool = False) -> None:
         super().set_piece_at(square, piece, promoted=promoted)
         self.clear_stack()
+
+    def generate_pseudo_legal_moves_rchess(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
+        # regular moves
+        our_pieces = self.occupied_co[self.turn]
+        for move in pyo3_rchess.pseudo_legals(self, our_pieces & from_mask, to_mask):
+            yield Move(move[0], move[1])
+
+        # Generate castling moves.
+        if from_mask & self.kings:
+            yield from self.generate_castling_moves(from_mask, to_mask)
+
+        # Generate en passant captures.
+        if self.ep_square:
+            yield from self.generate_pseudo_legal_ep(from_mask, to_mask)
+
 
     def generate_pseudo_legal_moves(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
         our_pieces = self.occupied_co[self.turn]
